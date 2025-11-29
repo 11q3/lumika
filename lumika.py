@@ -708,22 +708,36 @@ class SileroTTSEngine:
 
         try:
             print("[TTS] Loading Silero bilingual model via torch.hub (CPU)...")
-            model, _ = torch.hub.load(
+            load_result = torch.hub.load(
                 repo_or_dir="snakers4/silero-models",
                 model="silero_tts",
                 language="multi",
                 speaker="multi_v2",
             )
+            if isinstance(load_result, (list, tuple)) and load_result:
+                model = load_result[0]
+                speakers_meta = None
+                if len(load_result) >= 4:
+                    speakers_meta = load_result[3]
+            else:
+                model = load_result
+                speakers_meta = None
             if hasattr(model, "to"):
                 model.to(self.device)
             if hasattr(model, "eval"):
                 model.eval()
             voices = []
-            if hasattr(model, "speakers") and model.speakers:
+            if speakers_meta:
+                voices = list(speakers_meta)
+            elif hasattr(model, "speakers") and model.speakers:
                 voices = list(model.speakers)
             elif hasattr(model, "speaker") and getattr(model, "speaker"):
                 voices = [getattr(model, "speaker")]
 
+            fallback_voice = False
+            if not voices:
+                voices = ["en_0"]
+                fallback_voice = True
             voice = voices[0] if voices else None
             self.models[self.BILINGUAL_KEY] = {
                 "model": model,
@@ -735,9 +749,20 @@ class SileroTTSEngine:
             extras = self._filter_extra_kwargs(model, extras)
             self.extra = {self.BILINGUAL_KEY: extras}
             if voice:
-                print(f"[TTS] Bilingual Silero model loaded successfully (default speaker: {voice}).")
+                print(
+                    "[TTS] Bilingual Silero model loaded successfully "
+                    f"(default speaker: {voice})."
+                )
+            elif voices:
+                extra = " (using fallback en_0 list)" if fallback_voice else ""
+                print(
+                    "[TTS] Bilingual Silero model loaded successfully "
+                    f"({len(voices)} speakers available, using model default){extra}."
+                )
             else:
-                print("[TTS] Bilingual Silero model loaded successfully (using model default speaker).")
+                print(
+                    "[TTS] Bilingual Silero model loaded successfully (using model default speaker)."
+                )
             return
         except Exception as e:
             msg = (
