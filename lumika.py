@@ -740,21 +740,53 @@ class SileroTTSEngine:
 
     def _apply_model_tts(self, model, text: str, kwargs: dict):
         """
-        Call Silero's apply_tts handling both legacy ``text=`` and newer
-        multi_v2 ``texts=`` signatures. Falls back to positional invocation
-        if keyword dispatch is not supported.
+        Call Silero's apply_tts handling legacy ``text=``/``texts=`` keywords
+        as well as positional-only signatures (e.g., multi_v2).
         """
 
-        try:
-            return model.apply_tts(text=text, **kwargs)
-        except TypeError as e_text:
+        kwargs = dict(kwargs or {})
+        speaker = kwargs.pop("speaker", None)
+        sample_rate = kwargs.pop("sample_rate", None)
+        base_kwargs = dict(kwargs)
+
+        attempts = []
+
+        # Keyword first (both text= and texts=) with all available extras.
+        full_kw = dict(base_kwargs)
+        if sample_rate is not None:
+            full_kw["sample_rate"] = sample_rate
+        if speaker is not None:
+            full_kw["speaker"] = speaker
+        attempts.append(((), {**full_kw, "text": text}))
+        attempts.append(((), {**full_kw, "texts": [text]}))
+
+        # Retry without speaker keyword in case it's positional-only.
+        no_speaker_kw = dict(full_kw)
+        no_speaker_kw.pop("speaker", None)
+        attempts.append(((), {**no_speaker_kw, "text": text}))
+        attempts.append(((), {**no_speaker_kw, "texts": [text]}))
+
+        # Positional fallbacks (text, speaker[, sample_rate], **extras).
+        if speaker is not None:
+            pos_args = [text, speaker]
+            attempts.append((tuple(pos_args), {**base_kwargs}))
+            if sample_rate is not None:
+                attempts.append((tuple(pos_args + [sample_rate]), {**base_kwargs}))
+        # Pure positional text with remaining kwargs.
+        attempts.append(((text,), {**no_speaker_kw}))
+
+        last_exc = None
+        for args, kw in attempts:
             try:
-                return model.apply_tts(texts=[text], **kwargs)
-            except TypeError as e_texts:
-                try:
-                    return model.apply_tts(text, **kwargs)
-                except Exception:
-                    raise e_texts from e_text
+                return model.apply_tts(*args, **kw)
+            except TypeError as exc:
+                last_exc = exc
+            except Exception:
+                # Preserve the most relevant TypeError chain if all fail.
+                raise
+        if last_exc:
+            raise last_exc
+        raise RuntimeError("apply_tts invocation failed without exception.")
 
     @staticmethod
     def _build_atempo_filters(speed_ratio: float) -> str:
