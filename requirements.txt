@@ -8,4 +8,3 @@ num2words
 pystray
 torch
 omegaconf
-pywin32
