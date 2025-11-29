@@ -30,7 +30,15 @@ except Exception:
 
 import num2words
 
-from pystray import Icon, Menu, MenuItem
+try:
+    # Only try to use pystray if we are on Windows, or DISPLAY is set
+    if os.name == "nt" or os.environ.get("DISPLAY"):
+        from pystray import Icon, Menu, MenuItem
+    else:
+        raise RuntimeError("No GUI / tray available")
+except Exception as e:
+    print(f"[TRAY] pystray not available ({e}); tray UI disabled.")
+    Icon = Menu = MenuItem = None
 
 
 # ---------------------------------------------------------------------------
@@ -972,17 +980,20 @@ class SileroTTSEngine:
 # ---------------------------------------------------------------------------
 
 def _load_tray_image() -> Image.Image:
-    ico_path = BASE_DIR / "lumika.ico"
-    if ico_path.exists():
-        try:
-            return Image.open(ico_path)
-        except Exception as e:
-            print(f"[TRAY] Failed to load lumika.ico: {e}")
-    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    draw.rectangle((8, 8, 56, 56), outline="white", width=2)
-    draw.text((18, 18), "L", fill="white")
-    return img
+    if Icon is not None:
+        ico_path = BASE_DIR / "lumika.ico"
+        if ico_path.exists():
+            try:
+                return Image.open(ico_path)
+            except Exception as e:
+                print(f"[TRAY] Failed to load lumika.ico: {e}")
+        img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+        draw.rectangle((8, 8, 56, 56), outline="white", width=2)
+        draw.text((18, 18), "L", fill="white")
+        return img
+    else:
+        print("[TRAY] Skipping tray icon (headless environment)")
 
 
 # ---------------------------------------------------------------------------
