@@ -718,12 +718,18 @@ class SileroTTSEngine:
                 model.to(self.device)
             if hasattr(model, "eval"):
                 model.eval()
-            voice = None
+            voices = []
             if hasattr(model, "speakers") and model.speakers:
-                voice = model.speakers[0]
+                voices = list(model.speakers)
             elif hasattr(model, "speaker") and getattr(model, "speaker"):
-                voice = getattr(model, "speaker")
-            self.models[self.BILINGUAL_KEY] = {"model": model, "voice": voice}
+                voices = [getattr(model, "speaker")]
+
+            voice = voices[0] if voices else None
+            self.models[self.BILINGUAL_KEY] = {
+                "model": model,
+                "voice": voice,
+                "voices": voices,
+            }
             self.speed = {self.BILINGUAL_KEY: 100}
             extras = {"put_accent": True, "put_yo": True}
             extras = self._filter_extra_kwargs(model, extras)
@@ -748,8 +754,10 @@ class SileroTTSEngine:
         }
         for lang in self.models:
             txt = warm.get(lang, warm[self.BILINGUAL_KEY])
-            model = self.models[lang]["model"]
-            voice = self.models[lang]["voice"]
+            entry = self.models[lang]
+            model = entry["model"]
+            voice = entry.get("voice")
+            voices = entry.get("voices") or ([] if voice is None else [voice])
             for i in range(2):
                 t0 = time.time()
                 try:
@@ -759,14 +767,14 @@ class SileroTTSEngine:
                         if voice:
                             kwargs["speaker"] = voice
                         kwargs.update(self.extra.get(lang, {}))
-                        _ = self._apply_model_tts(model, text, kwargs)
+                        _ = self._apply_model_tts(model, text, kwargs, speakers_list=voices)
                     dt = time.time() - t0
                     print(f"[TTS] Warmup {lang} pass {i+1} done in {dt:.3f}s")
                 except Exception as e:
                     print(f"[TTS] Warmup {lang} pass {i+1} failed: {e}")
                     break
 
-    def _apply_model_tts(self, model, text: str, kwargs: dict):
+    def _apply_model_tts(self, model, text: str, kwargs: dict, speakers_list=None):
         """
         Call Silero's apply_tts handling legacy ``text=``/``texts=`` keywords
         as well as positional-only signatures (e.g., multi_v2).
@@ -775,6 +783,11 @@ class SileroTTSEngine:
         kwargs = dict(kwargs or {})
         speaker = kwargs.pop("speaker", None)
         sample_rate = kwargs.pop("sample_rate", None)
+        speakers = list(speakers_list or [])
+        if speaker and not speakers:
+            speakers = [speaker]
+        elif speakers and not speaker:
+            speaker = speakers[0]
         base_kwargs = dict(kwargs)
 
         attempts = []
@@ -786,6 +799,8 @@ class SileroTTSEngine:
                 full_kw["sample_rate"] = sample_rate
             if speaker is not None:
                 full_kw["speaker"] = speaker
+            if speakers:
+                full_kw["speakers"] = speakers
 
             # Keyword first (both text= and texts=) with provided extras.
             attempts.append(((), {**full_kw, "text": text}))
@@ -794,12 +809,18 @@ class SileroTTSEngine:
             # Retry without speaker keyword in case it's positional-only.
             no_speaker_kw = dict(full_kw)
             no_speaker_kw.pop("speaker", None)
+            no_speaker_kw.pop("speakers", None)
             attempts.append(((), {**no_speaker_kw, "text": text}))
             attempts.append(((), {**no_speaker_kw, "texts": [text]}))
 
             # Positional fallbacks (text, speaker[, sample_rate], **extras).
             if speaker is not None:
                 pos_args = [text, speaker]
+                attempts.append((tuple(pos_args), {**extra_kwargs}))
+                if sample_rate is not None:
+                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
+            if speakers:
+                pos_args = [[text], speakers]
                 attempts.append((tuple(pos_args), {**extra_kwargs}))
                 if sample_rate is not None:
                     attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
@@ -1008,8 +1029,10 @@ class SileroTTSEngine:
         text = self._apply_lang_specific_preprocessing(text, lang)
         if not text or self._stop_event.is_set():
             return None
-        model = self.models[lang]["model"]
-        voice = self.models[lang]["voice"]
+        entry = self.models[lang]
+        model = entry["model"]
+        voice = entry.get("voice")
+        speakers = entry.get("voices") or ([] if voice is None else [voice])
         voice_label = voice if voice else "<default>"
         print(f"[TTS] Synth | lang={lang}, speaker={voice_label}, len={len(text)}")
         t0 = time.time()
@@ -1019,7 +1042,7 @@ class SileroTTSEngine:
                 if voice:
                     kwargs["speaker"] = voice
                 kwargs.update(self.extra.get(lang, {}))
-                audio = self._apply_model_tts(model, text, kwargs)
+                audio = self._apply_model_tts(model, text, kwargs, speakers_list=speakers)
         except Exception as e:
             print(f"[TTS] Synth error ({lang}): {e}")
             return None
