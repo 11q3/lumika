@@ -15,10 +15,18 @@ from PIL import Image, ImageFilter, ImageOps, ImageDraw
 import pytesseract
 
 import numpy as np
-import simpleaudio as sa
+try:
+    import simpleaudio as sa
+except Exception as e:
+    sa = None
+    print(f"[AUDIO] simpleaudio not available ({e}); audio playback disabled in this environment")
+
 
 import torch
-import tkinter as tk
+try:
+    import tkinter as tk
+except Exception:
+    tk = None
 
 import num2words
 
@@ -114,6 +122,9 @@ def setup_tesseract():
 # ---------------------------------------------------------------------------
 
 def capture_region():
+    if tk is None:
+        raise RuntimeError("capture_region is only supported when tkinter is available")
+
     class POINT(ctypes.Structure):
         _fields_ = [("x", ctypes.c_long), ("y", ctypes.c_long)]
 
@@ -614,6 +625,9 @@ def trim_silence(buf: np.ndarray, threshold: int = 700, margin: int = 600) -> np
 
 
 def show_speed_popup(speed_percent: int, lang: str | None = None):
+    if tk is None:
+        return
+
     def _popup():
         try:
             root = tk.Tk()
@@ -804,12 +818,19 @@ class SileroTTSEngine:
         while True:
             item = self._audio_queue.get()
             try:
+                if sa is None:
+                    # В headless/контейнере просто дропаем буфер
+                    self._audio_queue.task_done()
+                    continue
+
                 lang, buf = item
                 if self._stop_event.is_set() or buf.size == 0:
                     self._audio_queue.task_done()
                     continue
+
                 with self._lock:
                     speed_percent = self.speed.get(lang, self.speed["ru"])
+
                 buf_to_play = self._time_stretch_ffmpeg(buf, speed_percent)
                 play_obj = sa.play_buffer(
                     buf_to_play.tobytes(),
@@ -819,11 +840,13 @@ class SileroTTSEngine:
                 )
                 with self._lock:
                     self._current_play_obj = play_obj
+
                 while play_obj.is_playing():
                     if self._stop_event.is_set():
                         play_obj.stop()
                         break
                     time.sleep(0.01)
+
                 self._audio_queue.task_done()
             except Exception as e:
                 print(f"[TTS] Player error: {e}")
