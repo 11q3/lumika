@@ -655,26 +655,17 @@ def show_speed_popup(speed_percent: int, lang: str | None = None):
 # ---------------------------------------------------------------------------
 
 class SileroTTSEngine:
+    BILINGUAL_KEY = "bi"
+
     def __init__(self):
         self.device = "cpu"
         self.sample_rate = 24000
         self.speed = {"ru": 100, "en": 100}
         self.extra = {"ru": {"put_accent": True, "put_yo": True}, "en": {}}
         self.models = {}
+        self.bilingual_enabled = False
 
-        for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
-            print(f"[TTS] Loading Silero {lang.upper()} model via torch.hub (CPU)...")
-            model, _ = torch.hub.load(
-                repo_or_dir="snakers4/silero-models",
-                model="silero_tts",
-                language=lang,
-                speaker=hub_speaker,
-            )
-            if hasattr(model, "to"):
-                model.to(self.device)
-            if hasattr(model, "eval"):
-                model.eval()
-            self.models[lang] = {"model": model, "voice": voice}
+        self._load_models()
 
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -690,19 +681,63 @@ class SileroTTSEngine:
         self._warmup()
         self._thread = None
 
+    def _load_models(self):
+        """
+        Try to load a bilingual Silero model first to synthesize RU+EN text in one
+        pass. If that fails (e.g., model unavailable), fall back to the original
+        per-language models.
+        """
+
+        try:
+            print("[TTS] Loading Silero bilingual model via torch.hub (CPU)...")
+            model, _ = torch.hub.load(
+                repo_or_dir="snakers4/silero-models",
+                model="silero_tts",
+                language="multi",
+                speaker="v4_multi",
+            )
+            if hasattr(model, "to"):
+                model.to(self.device)
+            if hasattr(model, "eval"):
+                model.eval()
+            self.models[self.BILINGUAL_KEY] = {"model": model, "voice": "en_0"}
+            self.speed = {self.BILINGUAL_KEY: 100}
+            self.extra = {self.BILINGUAL_KEY: {"put_accent": True, "put_yo": True}}
+            self.bilingual_enabled = True
+            print("[TTS] Bilingual Silero model loaded successfully.")
+            return
+        except Exception as e:
+            print(f"[TTS] Bilingual model load failed, falling back to RU/EN split: {e}")
+
+        for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
+            print(f"[TTS] Loading Silero {lang.upper()} model via torch.hub (CPU)...")
+            model, _ = torch.hub.load(
+                repo_or_dir="snakers4/silero-models",
+                model="silero_tts",
+                language=lang,
+                speaker=hub_speaker,
+            )
+            if hasattr(model, "to"):
+                model.to(self.device)
+            if hasattr(model, "eval"):
+                model.eval()
+            self.models[lang] = {"model": model, "voice": voice}
+
     def _warmup(self):
         warm = {
             "ru": "Это длинная прогревочная фраза для русской модели, которая помогает загрузить все внутренние веса и графы, чтобы последующий вызов был быстрее.",
             "en": "This is a long warmup sentence for the English model, to load all internal weights and computation graphs, so that later calls are faster.",
+            self.BILINGUAL_KEY: "This warmup line mixes русский и English so the bilingual model primes both alphabets before real playback.",
         }
-        for lang, txt in warm.items():
+        for lang in self.models:
+            txt = warm.get(lang, warm["ru"])
             model = self.models[lang]["model"]
             voice = self.models[lang]["voice"]
             for i in range(2):
                 t0 = time.time()
                 try:
                     with self._lock, torch.no_grad():
-                        text = preprocess_for_tts(txt, lang)
+                        text = preprocess_for_tts(txt, "ru" if lang == self.BILINGUAL_KEY else lang)
                         kwargs = {
                             "text": text,
                             "speaker": voice,
@@ -809,7 +844,7 @@ class SileroTTSEngine:
                     self._audio_queue.task_done()
                     continue
                 with self._lock:
-                    speed_percent = self.speed.get(lang, self.speed["ru"])
+                    speed_percent = self.speed.get(lang, self.speed.get("ru", 100))
                 buf_to_play = self._time_stretch_ffmpeg(buf, speed_percent)
                 play_obj = sa.play_buffer(
                     buf_to_play.tobytes(),
@@ -864,8 +899,7 @@ class SileroTTSEngine:
         t.start()
 
     def set_speed_percent(self, lang: str, value: int):
-        if lang not in self.speed:
-            lang = "ru"
+        lang = self._resolve_lang_key(lang)
         value = int(round(value / SPEED_STEP_PERCENT) * SPEED_STEP_PERCENT)
         value = max(SPEED_MIN_PERCENT, min(SPEED_MAX_PERCENT, value))
         with self._lock:
@@ -874,8 +908,7 @@ class SileroTTSEngine:
         show_speed_popup(value, lang)
 
     def change_speed_step(self, lang: str, delta_step: int):
-        if lang not in self.speed:
-            lang = "ru"
+        lang = self._resolve_lang_key(lang)
         with self._lock:
             base = self.speed[lang]
         self.set_speed_percent(lang, base + delta_step * SPEED_STEP_PERCENT)
@@ -886,6 +919,22 @@ class SileroTTSEngine:
         segments = split_ru_en_segments(text)
         if not segments:
             return
+        if self.bilingual_enabled:
+            merged = self._merge_segments_for_bilingual(segments)
+            if not merged:
+                return
+            lang_key = self.BILINGUAL_KEY
+            print("[TTS] Using bilingual model for merged text (preview):")
+            preview = merged.replace("\n", " ")[:80]
+            print(f"   - [{lang_key}] '{preview}'")
+            buf = self._synth_segment(merged, lang_key)
+            if buf is not None and buf.size:
+                try:
+                    self._audio_queue.put((lang_key, buf), timeout=0.1)
+                except queue.Full:
+                    print("[TTS] Audio queue full, dropping synthesis result.")
+            return
+
         print("[TTS] Segments (lang + preview):")
         for seg_text, lang in segments:
             preview = seg_text.replace("\n", " ")[:60]
@@ -907,8 +956,7 @@ class SileroTTSEngine:
                 break
 
     def _synth_segment(self, text: str, lang: str):
-        text = apply_custom_dict(text, lang)
-        text = preprocess_for_tts(text, lang)
+        text = self._apply_lang_specific_preprocessing(text, lang)
         if not text or self._stop_event.is_set():
             return None
         model = self.models[lang]["model"]
@@ -942,6 +990,34 @@ class SileroTTSEngine:
         audio_int16 = (audio * 32767.0).astype(np.int16)
         audio_int16 = trim_silence(audio_int16)
         return audio_int16
+
+    def _resolve_lang_key(self, requested: str) -> str:
+        if self.bilingual_enabled:
+            return self.BILINGUAL_KEY
+        if requested not in self.speed:
+            return "ru"
+        return requested
+
+    def _merge_segments_for_bilingual(self, segments):
+        normalized_parts = []
+        for seg_text, lang in segments:
+            prepared = self._apply_lang_specific_preprocessing(seg_text, lang)
+            if prepared:
+                normalized_parts.append(prepared)
+        merged = " ".join(normalized_parts).strip()
+        return merged
+
+    def _apply_lang_specific_preprocessing(self, text: str, lang: str) -> str:
+        lang_key = self._resolve_lang_key(lang)
+        # Even with bilingual synthesis we still want per-language cleanup for
+        # dictionary replacements and number naming.
+        if lang_key == self.BILINGUAL_KEY:
+            lang_for_cleanup = "ru" if any(_is_cyrillic(ch) for ch in text) else "en"
+        else:
+            lang_for_cleanup = lang_key
+        text = apply_custom_dict(text, lang_for_cleanup)
+        text = preprocess_for_tts(text, lang_for_cleanup)
+        return text
 
 
 # ---------------------------------------------------------------------------
@@ -1041,7 +1117,7 @@ def main():
     print("Alt+PageUp / Alt+PageDown — change RU playback speed (10–400%, step 25%).")
     print("Shift+PageUp / Shift+PageDown — change EN playback speed (10–400%, step 25%).")
     print("Close tray icon (right-click → Quit) to exit.")
-    print("OCR: Tesseract eng+rus; TTS: Silero (RU+EN, CPU, heavy warmup).")
+    print("OCR: Tesseract eng+rus; TTS: Silero (RU+EN, CPU, bilingual preferred).")
     print("Speed uses ffmpeg 'atempo' to keep pitch constant; ffmpeg.exe must be in PATH.\n")
     print("[TTS] Initializing Silero models via torch.hub (CPU)...")
     tts_engine = SileroTTSEngine()
