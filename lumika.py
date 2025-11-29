@@ -721,14 +721,17 @@ class SileroTTSEngine:
             voice = None
             if hasattr(model, "speakers") and model.speakers:
                 voice = model.speakers[0]
-            if not voice:
-                voice = "en_0"
+            elif hasattr(model, "speaker") and getattr(model, "speaker"):
+                voice = getattr(model, "speaker")
             self.models[self.BILINGUAL_KEY] = {"model": model, "voice": voice}
             self.speed = {self.BILINGUAL_KEY: 100}
             extras = {"put_accent": True, "put_yo": True}
             extras = self._filter_extra_kwargs(model, extras)
             self.extra = {self.BILINGUAL_KEY: extras}
-            print("[TTS] Bilingual Silero model loaded successfully.")
+            if voice:
+                print(f"[TTS] Bilingual Silero model loaded successfully (default speaker: {voice}).")
+            else:
+                print("[TTS] Bilingual Silero model loaded successfully (using model default speaker).")
             return
         except Exception as e:
             msg = (
@@ -752,7 +755,9 @@ class SileroTTSEngine:
                 try:
                     with self._lock, torch.no_grad():
                         text = preprocess_for_tts(txt, "ru" if lang == self.BILINGUAL_KEY else lang)
-                        kwargs = {"speaker": voice, "sample_rate": self.sample_rate}
+                        kwargs = {"sample_rate": self.sample_rate}
+                        if voice:
+                            kwargs["speaker"] = voice
                         kwargs.update(self.extra.get(lang, {}))
                         _ = self._apply_model_tts(model, text, kwargs)
                     dt = time.time() - t0
@@ -810,11 +815,9 @@ class SileroTTSEngine:
         for args, kw in attempts:
             try:
                 return model.apply_tts(*args, **kw)
-            except TypeError as exc:
+            except Exception as exc:
                 last_exc = exc
-            except Exception:
-                # Preserve the most relevant TypeError chain if all fail.
-                raise
+                continue
         if last_exc:
             raise last_exc
         raise RuntimeError("apply_tts invocation failed without exception.")
@@ -1007,11 +1010,14 @@ class SileroTTSEngine:
             return None
         model = self.models[lang]["model"]
         voice = self.models[lang]["voice"]
-        print(f"[TTS] Synth | lang={lang}, speaker={voice}, len={len(text)}")
+        voice_label = voice if voice else "<default>"
+        print(f"[TTS] Synth | lang={lang}, speaker={voice_label}, len={len(text)}")
         t0 = time.time()
         try:
             with self._lock, torch.no_grad():
-                kwargs = {"speaker": voice, "sample_rate": self.sample_rate}
+                kwargs = {"sample_rate": self.sample_rate}
+                if voice:
+                    kwargs["speaker"] = voice
                 kwargs.update(self.extra.get(lang, {}))
                 audio = self._apply_model_tts(model, text, kwargs)
         except Exception as e:
