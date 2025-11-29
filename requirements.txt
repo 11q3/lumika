@@ -3,7 +3,7 @@ mss
 pillow
 pytesseract
 numpy
-simpleaudio
+simpleaudio; platform_system == "Windows"
 num2words
 pystray
 torch
