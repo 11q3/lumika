@@ -3,6 +3,7 @@ import sys
 import time
 import threading
 import ctypes
+import inspect
 from pathlib import Path
 
 import re
@@ -679,6 +680,26 @@ class SileroTTSEngine:
         self._warmup()
         self._thread = None
 
+    @staticmethod
+    def _filter_extra_kwargs(model, extras: dict) -> dict:
+        extras = dict(extras or {})
+        try:
+            sig = inspect.signature(model.apply_tts)
+        except Exception:
+            return extras
+        params = sig.parameters
+        if any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values()):
+            return extras
+        allowed = {k: v for k, v in extras.items() if k in params}
+        if len(allowed) != len(extras):
+            removed = sorted(set(extras) - set(allowed))
+            if removed:
+                print(
+                    "[TTS] Stripping unsupported apply_tts extras: "
+                    + ", ".join(removed)
+                )
+        return allowed
+
     def _load_models(self):
         """
         Load a bilingual Silero model to synthesize RU+EN text in one pass.
@@ -704,7 +725,9 @@ class SileroTTSEngine:
                 voice = "en_0"
             self.models[self.BILINGUAL_KEY] = {"model": model, "voice": voice}
             self.speed = {self.BILINGUAL_KEY: 100}
-            self.extra = {self.BILINGUAL_KEY: {"put_accent": True, "put_yo": True}}
+            extras = {"put_accent": True, "put_yo": True}
+            extras = self._filter_extra_kwargs(model, extras)
+            self.extra = {self.BILINGUAL_KEY: extras}
             print("[TTS] Bilingual Silero model loaded successfully.")
             return
         except Exception as e:
@@ -751,29 +774,37 @@ class SileroTTSEngine:
 
         attempts = []
 
-        # Keyword first (both text= and texts=) with all available extras.
-        full_kw = dict(base_kwargs)
-        if sample_rate is not None:
-            full_kw["sample_rate"] = sample_rate
-        if speaker is not None:
-            full_kw["speaker"] = speaker
-        attempts.append(((), {**full_kw, "text": text}))
-        attempts.append(((), {**full_kw, "texts": [text]}))
-
-        # Retry without speaker keyword in case it's positional-only.
-        no_speaker_kw = dict(full_kw)
-        no_speaker_kw.pop("speaker", None)
-        attempts.append(((), {**no_speaker_kw, "text": text}))
-        attempts.append(((), {**no_speaker_kw, "texts": [text]}))
-
-        # Positional fallbacks (text, speaker[, sample_rate], **extras).
-        if speaker is not None:
-            pos_args = [text, speaker]
-            attempts.append((tuple(pos_args), {**base_kwargs}))
+        def add_attempts(extra_kwargs: dict):
+            extra_kwargs = dict(extra_kwargs or {})
+            full_kw = dict(extra_kwargs)
             if sample_rate is not None:
-                attempts.append((tuple(pos_args + [sample_rate]), {**base_kwargs}))
-        # Pure positional text with remaining kwargs.
-        attempts.append(((text,), {**no_speaker_kw}))
+                full_kw["sample_rate"] = sample_rate
+            if speaker is not None:
+                full_kw["speaker"] = speaker
+
+            # Keyword first (both text= and texts=) with provided extras.
+            attempts.append(((), {**full_kw, "text": text}))
+            attempts.append(((), {**full_kw, "texts": [text]}))
+
+            # Retry without speaker keyword in case it's positional-only.
+            no_speaker_kw = dict(full_kw)
+            no_speaker_kw.pop("speaker", None)
+            attempts.append(((), {**no_speaker_kw, "text": text}))
+            attempts.append(((), {**no_speaker_kw, "texts": [text]}))
+
+            # Positional fallbacks (text, speaker[, sample_rate], **extras).
+            if speaker is not None:
+                pos_args = [text, speaker]
+                attempts.append((tuple(pos_args), {**extra_kwargs}))
+                if sample_rate is not None:
+                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
+            # Pure positional text with remaining kwargs.
+            attempts.append(((text,), {**extra_kwargs}))
+
+        # Try with full extras first, then a minimal set (e.g., for multi_v2 which rejects put_accent).
+        add_attempts(base_kwargs)
+        if base_kwargs:
+            add_attempts({})
 
         last_exc = None
         for args, kw in attempts:
