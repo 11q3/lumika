@@ -827,7 +827,20 @@ class SileroTTSEngine:
             if speakers:
                 full_kw["speakers"] = speakers
 
-            # Keyword first (both text= and texts=) with provided extras.
+            # Positional-first variants to satisfy models that require
+            # ``speakers`` as a positional argument (e.g., multi_v2).
+            if speakers:
+                pos_args = [[text], speakers]
+                if sample_rate is not None:
+                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
+                attempts.append((tuple(pos_args), {**extra_kwargs}))
+            if speaker is not None:
+                pos_args = [text, speaker]
+                if sample_rate is not None:
+                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
+                attempts.append((tuple(pos_args), {**extra_kwargs}))
+
+            # Keyword variants (both text= and texts=) with provided extras.
             attempts.append(((), {**full_kw, "text": text}))
             attempts.append(((), {**full_kw, "texts": [text]}))
 
@@ -838,17 +851,6 @@ class SileroTTSEngine:
             attempts.append(((), {**no_speaker_kw, "text": text}))
             attempts.append(((), {**no_speaker_kw, "texts": [text]}))
 
-            # Positional fallbacks (text, speaker[, sample_rate], **extras).
-            if speaker is not None:
-                pos_args = [text, speaker]
-                attempts.append((tuple(pos_args), {**extra_kwargs}))
-                if sample_rate is not None:
-                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
-            if speakers:
-                pos_args = [[text], speakers]
-                attempts.append((tuple(pos_args), {**extra_kwargs}))
-                if sample_rate is not None:
-                    attempts.append((tuple(pos_args + [sample_rate]), {**extra_kwargs}))
             # Pure positional text with remaining kwargs.
             attempts.append(((text,), {**extra_kwargs}))
 
