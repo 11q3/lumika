@@ -780,7 +780,8 @@ class SileroTTSEngine:
         self.models = {BILINGUAL_LANG: {"model": model, "voice": speaker}}
         self.sample_rate = BILINGUAL_SAMPLE_RATE
         self.speed = {BILINGUAL_LANG: 100}
-        self.extra = {BILINGUAL_LANG: {"put_accent": True, "put_yo": True}}
+        # The bilingual model rejects optional kwargs like put_accent/put_yo; keep it minimal.
+        self.extra = {BILINGUAL_LANG: {}}
 
     def _load_mono_models(self):
         for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
