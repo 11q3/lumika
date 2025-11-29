@@ -919,7 +919,7 @@ class SileroTTSEngine:
         segments = split_ru_en_segments(text)
         if not segments:
             return
-        if self.bilingual_enabled:
+        if self._has_bilingual_model():
             merged = self._merge_segments_for_bilingual(segments)
             if not merged:
                 return
@@ -992,11 +992,14 @@ class SileroTTSEngine:
         return audio_int16
 
     def _resolve_lang_key(self, requested: str) -> str:
-        if self.bilingual_enabled:
+        if self._has_bilingual_model():
             return self.BILINGUAL_KEY
         if requested not in self.speed:
             return "ru"
         return requested
+
+    def _has_bilingual_model(self) -> bool:
+        return self.bilingual_enabled and self.BILINGUAL_KEY in self.models
 
     def _merge_segments_for_bilingual(self, segments):
         normalized_parts = []
