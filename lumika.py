@@ -401,35 +401,20 @@ def _detect_token_lang(tok: str, prev: str | None):
     return prev or "ru"
 
 
-def split_ru_en_segments(text: str):
+def detect_dominant_language(text: str) -> str:
     tokens = WORD_OR_SPACE_RE.findall(text)
-    segments = []
+    counts = {"ru": 0, "en": 0}
     cur_lang = None
-    buf = []
 
     for tok in tokens:
         tok_lang = _detect_token_lang(tok, cur_lang)
-        if cur_lang is None and tok_lang is None:
-            tok_lang = "ru"
-        if cur_lang is None:
-            cur_lang = tok_lang or "ru"
-            buf.append(tok)
-            continue
-        if tok_lang is None or tok_lang == cur_lang:
-            buf.append(tok)
-        else:
-            seg_text = "".join(buf).strip()
-            if seg_text:
-                segments.append((seg_text, cur_lang))
-            buf = [tok]
+        if tok_lang:
             cur_lang = tok_lang
+            counts[tok_lang] += len(tok)
 
-    if buf:
-        seg_text = "".join(buf).strip()
-        if seg_text:
-            segments.append((seg_text, cur_lang or "ru"))
-
-    return segments
+    if counts["en"] > counts["ru"]:
+        return "en"
+    return "ru"
 
 
 # ---------------------------------------------------------------------------
@@ -1028,28 +1013,16 @@ class SileroTTSEngine:
                 except queue.Full:
                     continue
             return
-        segments = split_ru_en_segments(text)
-        if not segments:
+        lang = detect_dominant_language(text)
+        buf = self._synth_segment(text, lang)
+        if buf is None or not buf.size:
             return
-        print("[TTS] Segments (lang + preview):")
-        for seg_text, lang in segments:
-            preview = seg_text.replace("\n", " ")[:60]
-            print(f"   - [{lang}] '{preview}'")
-        for seg_text, lang in segments:
-            if self._stop_event.is_set():
-                print("[TTS] Stop requested, aborting synth.")
+        while not self._stop_event.is_set():
+            try:
+                self._audio_queue.put((lang, buf), timeout=0.1)
                 break
-            buf = self._synth_segment(seg_text, lang)
-            if buf is None or not buf.size:
+            except queue.Full:
                 continue
-            while not self._stop_event.is_set():
-                try:
-                    self._audio_queue.put((lang, buf), timeout=0.1)
-                    break
-                except queue.Full:
-                    continue
-            if self._stop_event.is_set():
-                break
 
     def _synth_segment(self, text: str, lang: str):
         text = apply_custom_dict(text, lang)
@@ -1081,15 +1054,6 @@ class SileroTTSEngine:
         audio_int16 = (audio * 32767.0).astype(np.int16)
         audio_int16 = trim_silence(audio_int16)
         return audio_int16
-
-    def _prepare_bilingual_text(self, segments):
-        parts = []
-        for seg_text, lang in segments:
-            prepared = apply_custom_dict(seg_text, lang)
-            prepared = preprocess_for_tts(prepared, lang)
-            if prepared:
-                parts.append(prepared)
-        return " ".join(parts)
 
     def _synth_bilingual(self, text: str):
         lang = BILINGUAL_LANG
