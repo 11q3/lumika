@@ -1050,12 +1050,11 @@ class SileroTTSEngine:
         try:
             with self._lock, torch.no_grad():
                 kwargs = {
-                    "text": text,
                     "speaker": voice,
                     "sample_rate": self.sample_rate,
                 }
                 kwargs.update(self.extra.get(lang, {}))
-                audio = model.apply_tts(**kwargs)
+                audio = model.apply_tts(text, **kwargs)
         except Exception as e:
             print(f"[TTS] Synth error ({lang}): {e}")
             return None
@@ -1095,12 +1094,11 @@ class SileroTTSEngine:
         try:
             with self._lock, torch.no_grad():
                 kwargs = {
-                    "text": text,
                     "speaker": voice,
                     "sample_rate": self.sample_rate,
                 }
                 kwargs.update(self.extra.get(lang, {}))
-                audio = model.apply_tts(**kwargs)
+                audio = model.apply_tts(text, **kwargs)
         except Exception as e:
             print(f"[TTS] Synth error ({lang}): {e}")
             return None
