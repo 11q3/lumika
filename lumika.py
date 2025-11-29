@@ -73,30 +73,8 @@ BILINGUAL_LANG = "multi"
 BILINGUAL_DEFAULT_SPEAKER = os.environ.get("LUMIKA_BILINGUAL_SPEAKER", "kseniya")
 BILINGUAL_SAMPLE_RATE = 16000
 
-from pathlib import Path
-import torch
-
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / "silero_cache" / "snakers4_silero-models_master"
-
-language = "ru"          # or "en"
-model_id = "v4_ru"       # or "v3_en", etc
-speaker = "xenia"        # or "en_0", etc
-
-model_path = CACHE_DIR / "src" / "silero" / "model" / f"{model_id}.pt"
-
-model, example_text = torch.hub.load(
-    repo_or_dir=str(CACHE_DIR),
-    model="silero_tts",
-    language=language,
-    speaker=model_id,
-    source="local",        # <- critical: do NOT try GitHub
-    path=str(model_path),  # <- tell Silero where the .pt is
-    force_reload=True,
-)
-
-model.to("cpu")
-
 
 ffmpeg_exe = BASE_DIR / "ffmpeg.exe"
 if ffmpeg_exe.exists():
