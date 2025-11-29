@@ -389,25 +389,26 @@ def fix_ru_specific_words(text: str) -> str:
     return "".join(parts)
 
 
+def _detect_token_lang(tok: str, prev: str | None):
+    cyr = sum(1 for ch in tok if _is_cyrillic(ch))
+    lat = sum(1 for ch in tok if _is_latin(ch))
+    if cyr == 0 and lat == 0:
+        return prev
+    if cyr > lat:
+        return "ru"
+    if lat > cyr:
+        return "en"
+    return prev or "ru"
+
+
 def split_ru_en_segments(text: str):
     tokens = WORD_OR_SPACE_RE.findall(text)
     segments = []
     cur_lang = None
     buf = []
 
-    def detect_token_lang(tok, prev):
-        cyr = sum(1 for ch in tok if _is_cyrillic(ch))
-        lat = sum(1 for ch in tok if _is_latin(ch))
-        if cyr == 0 and lat == 0:
-            return prev
-        if cyr > lat:
-            return "ru"
-        if lat > cyr:
-            return "en"
-        return prev or "ru"
-
     for tok in tokens:
-        tok_lang = detect_token_lang(tok, cur_lang)
+        tok_lang = _detect_token_lang(tok, cur_lang)
         if cur_lang is None and tok_lang is None:
             tok_lang = "ru"
         if cur_lang is None:
@@ -619,6 +620,36 @@ def preprocess_for_tts(text: str, lang: str) -> str:
     text = replace_numbers_with_words(text, lang)
     text = WHITESPACE_RE.sub(" ", text).strip()
     if lang == "ru" and text and text[-1] not in ".!?…":
+        text += "."
+    return text
+
+
+def preprocess_bilingual_mixed_text(text: str) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    text = NON_SPEECH_RE.sub("", text)
+    text = WHITESPACE_RE.sub(" ", text)
+    text = fix_ocr_confusions(text)
+
+    tokens = WORD_OR_SPACE_RE.findall(text)
+    cleaned_parts = []
+    cur_lang = None
+
+    for tok in tokens:
+        tok_lang = _detect_token_lang(tok, cur_lang)
+        if tok_lang:
+            cur_lang = tok_lang
+            tok = apply_custom_dict(tok, tok_lang)
+            if tok_lang == "ru":
+                tok = fix_ru_specific_words(tok)
+            tok = replace_numbers_with_words(tok, tok_lang)
+        cleaned_parts.append(tok)
+
+    text = "".join(cleaned_parts)
+    text = WHITESPACE_RE.sub(" ", text).strip()
+    if text and text[-1] not in ".!?…":
         text += "."
     return text
 
@@ -983,15 +1014,8 @@ class SileroTTSEngine:
     def _worker(self, text: str):
         if self._stop_event.is_set():
             return
-        segments = split_ru_en_segments(text)
-        if not segments:
-            return
-        print("[TTS] Segments (lang + preview):")
-        for seg_text, lang in segments:
-            preview = seg_text.replace("\n", " ")[:60]
-            print(f"   - [{lang}] '{preview}'")
         if self.bilingual:
-            tts_text = self._prepare_bilingual_text(segments)
+            tts_text = preprocess_bilingual_mixed_text(text)
             if not tts_text:
                 return
             buf = self._synth_bilingual(tts_text)
@@ -1004,6 +1028,13 @@ class SileroTTSEngine:
                 except queue.Full:
                     continue
             return
+        segments = split_ru_en_segments(text)
+        if not segments:
+            return
+        print("[TTS] Segments (lang + preview):")
+        for seg_text, lang in segments:
+            preview = seg_text.replace("\n", " ")[:60]
+            print(f"   - [{lang}] '{preview}'")
         for seg_text, lang in segments:
             if self._stop_event.is_set():
                 print("[TTS] Stop requested, aborting synth.")
