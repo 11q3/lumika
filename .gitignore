@@ -1,0 +1,22 @@
+# venv и кэш
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Tesseract и ffmpeg
+Tesseract-OCR/
+ffmpeg.exe
+
+# PyInstaller артефакты
+dist/
+build/
+*.spec
+
+# IDE
+.idea/
+.vscode/
+
+# Собранные exe
+*.exe

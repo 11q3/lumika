@@ -1,0 +1,359 @@
+# Escape from Tarkov weapons & modules dictionary
+# Format: Original|Russian phonetic|English phonetic
+
+# ----------------
+# WEAPONS
+# ----------------
+
+# Assault rifles
+ADAR 2-15|адар два-пятнадцать|adar two fifteen
+AK-101|эй-кей сто один|ay kay one oh one
+AK-102|эй-кей сто два|ay kay one oh two
+AK-103|эй-кей сто три|ay kay one oh three
+AK-104|эй-кей сто четыре|ay kay one oh four
+AK-105|эй-кей сто пять|ay kay one oh five
+AK-74|эй-кей семьдесят четыре|ay kay seventy four
+AK-74M|эй-кей семьдесят четыре эм|ay kay seventy four em
+AK-74N|эй-кей семьдесят четыре эн|ay kay seventy four en
+AKM|эй-кей-эм|ay kay em
+AKMN|эй-кей-эм-эн|ay kay em en
+AKMS|эй-кей-эм-эс|ay kay em ess
+AKMSN|эй-кей-эм-эс-эн|ay kay em ess en
+AKS-74|эй-кей-эс семьдесят четыре|ay kay ess seventy four
+AKS-74N|эй-кей-эс семьдесят четыре эн|ay kay ess seventy four en
+AKS-74U|эй-кей-эс семьдесят четыре ю|ay kay ess seventy four you
+AKS-74UB|эй-кей-эс семьдесят четыре ю-би|ay kay ess seventy four you bee
+AKS-74UN|эй-кей-эс семьдесят четыре ю-эн|ay kay ess seventy four you en
+ASh-12|аш двенадцать|ash twelve
+DT MDR|ди-ти эм-ди-эр|dee tee em dee ar
+DT MDR .308|ди-ти эм-ди-эр три ноль восемь|dee tee em dee ar three oh eight
+HK 416A5|эйч-кей четыреста шестнадцать а-пять|aych kay four sixteen ay five
+M4A1|эм четыре а-один|em four ay one
+SA-58|эс-эй пятьдесят восемь|ess ay fifty eight
+TX-15 DML|ти-икс пятнадцать ди-эм-эль|tee ex fifteen dee em ell
+Vepr AKM/VPO-209|вепрь эй-кей-эм вэ-пэ-о двести девять|vepr ay kay em vee pee oh two oh nine
+Vepr KM/VPO-136|вепрь ка-эм вэ-пэ-о сто тридцать шесть|vepr kay em vee pee oh one thirty six
+
+# Assault carbines
+AS VAL|ас вал|as val
+OP-SKS|о-пэ эс-ка-эс|oh pee ess kay ess
+SKS|эс-ка-эс|ess kay ess
+Vepr Hunter/VPO-101|вепрь хантер вэ-пэ-о сто один|vepr hunter vee pee oh one oh one
+
+# Light machine guns
+RPK-16|эр-пэ-ка шестнадцать|ar pee kay sixteen
+
+# Submachine guns
+MP5|эм-пи пять|em pee five
+MP5K-N|эм-пи пять кей-эн|em pee five kay en
+MP7A1|эм-пи семь а-один|em pee seven ay one
+MP9|эм-пи девять|em pee nine
+MP9-N|эм-пи девять эн|em pee nine en
+MP7A2|эм-пи семь а-два|em pee seven ay two
+MPX|эм-пи-икс|em pee ex
+P90|пи девяносто|pee ninety
+PP-19-01 Vityaz-SN|пэ-пэ девятнадцать ноль один витязь эс-эн|pee pee nineteen oh one vityaz ess en
+PP-9 Klin|пэ-пэ девять клин|pee pee nine klin
+PP-91 Kedr|пэ-пэ девяносто один кедр|pee pee ninety one kedr
+PP-91-01 Kedr-B|пэ-пэ девяносто один ноль один кедр-би|pee pee ninety one oh one kedr bee
+Saiga-9|сайга девять|saiga nine
+
+# Shotguns
+M870|эм восемьсот семьдесят|em eight seventy
+MP-133|эм-пи сто тридцать три|em pee one thirty three
+MP-153|эм-пи сто пятьдесят три|em pee one fifty three
+Saiga-12|сайга двенадцать|saiga twelve
+TOZ-106|тоз сто шесть|toz one oh six
+
+# Designated marksman rifles
+M1A|эм один а|em one ay
+RSASS|эрсас|ersas
+SR-25|эс-эр двадцать пять|ess ar twenty five
+SVDS|эс-ве-де-эс|ess vee dee ess
+VSS Vintorez|ве-эс-эс винторез|vee ess ess vintorez
+
+# Sniper rifles
+DVL-10|де-ве-эль десять|dee vee ell ten
+M700|эм семьсот|em seven hundred
+Mosin|мосин|mosin
+Mosin Inf.|мосин инф|mosin inf
+SV-98|эс-ве девяносто восемь|ess vee ninety eight
+T-5000|ти пять тысяч|tee five thousand
+VPO-215|ве-пэ-о двести пятнадцать|vee pee oh two fifteen
+
+# Pistols
+APB|апб|apb
+APS|апс|aps
+FN 5-7|эф-эн пять-семь|ef en five seven
+GLOCK17|глок семнадцать|glock seventeen
+GLOCK18C|глок восемнадцать си|glock eighteen see
+M9A3|эм девять а-три|em nine ay three
+MP-443 Grach|эм-пи четыреста сорок три грач|em pee four forty three grach
+P226R|пи двести двадцать шесть эр|pee two twenty six ar
+PB Pistol|пэ-бэ пистолет|pee bee pistol
+PM (t) Pistol|пэ-эм тэ пистолет|pee em tee pistol
+PM Pistol|пэ-эм пистолет|pee em pistol
+SR-1MP Gyurza|эс-эр один-эм-пэ гюрза|ess ar one em pee gyurza
+TT Pistol|тэ-тэ пистолет|tee tee pistol
+TT Pistol (Gold)|тэ-тэ пистолет голд|tee tee pistol gold
+
+# Melee weapons
+6h5 Bayonet|штык шесть х пять|six h five bayonet
+Antique Axe|антикварный топор|antique axe
+Bars A-2607-95×18|барс а два шесть ноль семь девяносто пять на восемнадцать|bars ay two six zero seven ninety five by eighteen
+Bars-A-2607-Damascus|барс а два шесть ноль семь дамаск|bars ay two six zero seven damascus
+Camper Axe|кемперский топор|camper axe
+Crash Axe|краш топор|crash axe
+ER Fulcrum Bayonet|и-эр фулкрум штык|ee ar fulcrum bayonet
+Freeman Crowbar|лом фримена|freeman crowbar
+Kiba Arms Tactical Tomahawk|киба армс тактический томагавк|kiba arms tactical tomahawk
+M-2 Tactical Sword|эм-два тактический меч|em two tactical sword
+MPL-50 Entrenching Tool|эм-пэ-эль пятьдесят сапёрная лопата|em pee ell fifty entrenching tool
+Red Rebel Ice Pick|ред ребел айс пик|red rebel ice pick
+SP-8 Survival Machete|эс-пэ восемь выживальческий мачете|ess pee eight survival machete
+
+# New Winter 2023 weapons
+PKM|пэ-ка-эм|pee kay em
+SVT|эс-ве-тэ|ess vee tee
+AVT|а-ве-тэ|ay vee tee
+AK-12|эй-кей двенадцать|ay kay twelve
+Sawed-off|обрез|sawed off
+PM|пэ-эм|pee em
+
+# ----------------
+# OPTICS / SIGHTS / MODULE BRANDS
+# ----------------
+
+# Brands / generic
+Magpul|магпул|mag pul
+M-LOK|эм-лок|em lok
+MOE|мо-и|em oh ee
+AFG|эй-эф-джи|ay eff jee
+UBR|ю-би-эр|you bee ar
+GEN2|джен два|gen two
+GEN3|джен три|gen three
+KAC|кей-эй-си|kay ay see
+Zenit|зенит|zen it
+Zenit RK-0|зенит эр-ка-ноль|zenit ar kay zero
+Zenit RK-1|зенит эр-ка-один|zenit ar kay one
+Zenit RK-2|зенит эр-ка-два|zenit ar kay two
+Zenit RK-4|зенит эр-ка-четыре|zenit ar kay four
+Zenit RK-5|зенит эр-ка-пять|zenit ar kay five
+Zenit B-10|зенит бэ-десять|zenit be ten
+Zenit B-11|зенит бэ-одиннадцать|zenit be eleven
+Zenit B-19|зенит бэ-девятнадцать|zenit be nineteen
+Zenit B-30|зенит бэ-тридцать|zenit be thirty
+Surefire|шурфайр|sure fire
+SilencerCo|сайленсер ко|silencer co
+FAB Defense|фаб дифенс|fab defense
+Daniel Defense|даниэл дифенс|daniel defense
+BCM|би-си-эм|bee see em
+Troy|трой|troy
+Fortis|фортис|fortis
+CAA|си-эй-эй|see ay ay
+
+# Reflex / holographic / red dot sights
+Aimpoint CompM4|еймпойнт комп-эм четыре|aimpoint comp em four
+Aimpoint PRO|еймпойнт пи-ар-оу|aimpoint pro
+Aimpoint ACRO P-1|еймпойнт акро пи-ван|aimpoint acro pee one
+Aimpoint Micro H-2|еймпойнт микро эйч-ту|aimpoint micro aych two
+Aimpoint Micro T-1|еймпойнт микро ти-уэн|aimpoint micro tee one
+Axion Kobra EKP-1S-03|аксион кобра е-ка-пэ один-эс-ноль-три|axion kobra e kay pee one ess oh three
+Axion Kobra EKP-8-02|аксион кобра е-ка-пэ восемь-ноль-два|axion kobra e kay pee eight oh two
+Axion Kobra EKP-8-18|аксион кобра е-ка-пэ восемь-один-восемь|axion kobra e kay pee eight one eight
+BelOMO PK-AA|беломо пэ-ка-а-а|belomo pee kay double ay
+BelOMO PK-06|беломо пэ-ка-ноль-шесть|belomo pee kay zero six
+ELCAN Specter HCO|элкан спектер эйч-си-оу|elcan specter aych see oh
+EOTech 553 holographic sight|эотек пять-пять-три голографический прицел|eotech five five three holographic sight
+EOTech EXPS3-0|эотек икс-пи-эс три-ноль|eotech ex pee ess three zero
+EOTech XPS3-0|эотек икс-пи-эс три-ноль|eotech ex pee ess three zero
+EOTech XPS3-2|эотек икс-пи-эс три-два|eotech ex pee ess three two
+EOTech HHS-1|эотек эйч-эйч-эс один|eotech aych aych ess one
+FALKE LE|фальке эл-и|falke el ee
+FN P90 Ring Sight|эф-эн пи девяносто ринг сайт|ef en pee ninety ring sight
+Hensoldt RV|хенсольд эр-ви|hensoldt ar vee
+Holosun HS401G5|холосан эйч-эс четыре-ноль-один-джи-пять|holosun aych ess four zero one jee five
+KOMZ Rusak reflex sight|комз русак коллиматор|komz rusak reflex sight
+
+# Scopes (optic)
+BelOMO PSO-1 4x24|беломо пэ-эс-о один четыре-икс-двадцать четыре|belomo pee ess oh one four by twenty four
+BelOMO PSO-1M2 4x24|беломо пэ-эс-о один-эм-два четыре-икс-двадцать четыре|belomo pee ess oh one em two four by twenty four
+BelOMO PSO-1M2-1 4x24|беломо пэ-эс-о один-эм-два-один четыре-икс-двадцать четыре|belomo pee ess oh one em two one four by twenty four
+Burris FullField TAC30 1-4x24|буррис фулфилд так тридцать один-четыре-икс-двадцать четыре|burris fullfield tac thirty one to four by twenty four
+EOTech Vudu 1-6x24|эотек вуду один-шесть-икс-двадцать четыре|eotech vudu one to six by twenty four
+Hensoldt FF 4-16x56|хенсольд эф-эф четыре-шестнадцать-икс-пятьдесят шесть|hensoldt ef ef four to sixteen by fifty six
+KMZ 1P59 3-10x|кмз один-пэ пятьдесят девять три-десять-икс|kay em zet one pee fifty nine three to ten x
+KMZ 1P69 3-10x|кмз один-пэ шестьдесят девять три-десять-икс|kay em zet one pee sixty nine three to ten x
+Leupold Mark 4 LR 6.5-20x50|люполд марк четыре эл-ар шесть и пять до двадцати-икс-пятьдесят|leupold mark four ell ar six point five to twenty by fifty
+Leupold Mark 4 MR/T TS-30A2 2.5-8x36|люполд марк четыре эм-ар-ти ти-эс тридцать эй-тус два и пять-восемь-икс-тридцать шесть|leupold mark four em ar tee tee ess thirty ay two point five to eight by thirty six
+Leupold Mark 5HD 5-25x56|люполд марк файв эйч-ди пять-двадцать пять-икс-пятьдесят шесть|leupold mark five aych dee five to twenty five by fifty six
+March Tactical 3-24x42|марч тактикал три-двадцать четыре-икс-сорок два|march tactical three to twenty four by forty two
+NcSTAR ADO P4 Sniper 3-9x42|нк-стар эй-ди-оу пи-фо снайпер три-девять-икс-сорок два|ncstar ay dee oh pee four sniper three to nine by forty two
+Nightforce ATACR 7-35x56|найтфорс атакр семь-тридцать пять-икс-пятьдесят шесть|nightforce atacr seven to thirty five by fifty six
+Nightforce NXS 2.5-10x24|найтфорс эн-икс-эс два и пять-десять-икс-двадцать четыре|nightforce en ex ess two point five to ten by twenty four
+NPZ 1P78-1 2.8x|эн-пэ-зэ один-пэ семьдесят восемь-один два и восемь-икс|en pee zet one pee seventy eight one two point eight x
+NPZ USP-1 Tyulpan 4x|эн-пэ-зэ ю-эс-пэ один тюльпан четыре-икс|en pee zet you ess pee one tyulpan four x
+PAG-17 scope|паг семнадцать прицел|pag seventeen scope
+PU 3.5x riflescope|пу три и пять-икс прицел|pee you three point five x riflescope
+Schmidt & Bender PM II 1-8x24|шмидт энд бендер пи-эм ту один-восемь-икс-двадцать четыре|schmidt and bender pee em two one to eight by twenty four
+Schmidt & Bender PM II 3-20x50|шмидт энд бендер пи-эм ту три-двадцать-икс-пятьдесят|schmidt and bender pee em two three to twenty by fifty
+Schmidt & Bender PM II 5-25x56|шмидт энд бендер пи-эм ту пять-двадцать пять-икс-пятьдесят шесть|schmidt and bender pee em two five to twenty five by fifty six
+SIG Sauer TANGO6T 1-6x24|зиг зауэр танго сикс-ти один-шесть-икс-двадцать четыре|sig sauer tango six tee one to six by twenty four
+VOMZ Pilad 4x32|вомз пилад четыре-икс-тридцать два|vomz pilad four by thirty two
+Vortex Razor HD Gen.2 1-6x24|вортекс рейзор эйч-ди джен ту один-шесть-икс-двадцать четыре|vortex razor HD gen two one to six by twenty four
+ПЛК100|пэ-эль-ка-сто|pee el key hundred
+# Format: Original|Russian phonetic|English phonetic
+
+# ----------------
+# WEAPONS / BASE GUNS
+# ----------------
+ПЛК100|пэ-эл-ка сто|pee el kay one hundred
+МР-133|эм-эр сто тридцать три|em ar one thirty three
+АКС-74У|эй-кей-эс семьдесят четыре у|ay kay ess seventy four you
+МP5|эм-пи пять|em pee five
+Remington 870|ремингтон восемьсот семьдесят|remington eight seventy
+АКМ|эй-кей-эм|ay kay em
+M4|эм четыре|em four
+AКС-74Н|эй-кей-эс семьдесят четыре эн|ay kay ess seventy four en
+SIG P226R|сиг пи-двести двадцать шесть-ар|sig pee two two six ar
+АК-105|эй-кей сто пять|ay kay one oh five
+KRISS Vector|крис вектор|kriss vector
+MPX|эм-пи-икс|em pee ex
+R11 RSASS|эр-одиннадцать ар-эс-а-эс-эс|ar eleven ar ess ay ess ess
+HK 416A5|эйч-кай четыреста шестнадцать эй-пять|aych kay four sixteen ay five
+АС Вал|ас вал|as val
+АК-102|эй-кей сто два|ay kay one oh two
+АКМН|эй-кей-эм-эн|ay kay em en
+СВДС|эс-ве-де-эс|ess vee dee ess
+СВАС|эс-ве-де-эс|ess vee dee ess
+CBAC|эс-ве-де-эс|ess vee dee ess
+М1А|эм-один-а|em one ay
+Remington Model 700|ремингтон модел семьсот|remington model seven hundred
+Colt M1911|колт эм девятнадцать-одиннадцать|colt em nineteen eleven
+АК|эй-кей|ay kay
+M4A1|эм четыре а-один|em four ay one
+AR|эй-ар|ay ar
+KAC SR-25|кей-эй-си эс-эр двадцать пять|kay ay see ess ar twenty five
+ПКП|пэ-ка-пэ|pee kay pee
+
+# ----------------
+# AMMO / CALIBERS
+# ----------------
+9x19|девять на девятнадцать|nine by nineteen
+
+# ----------------
+# BRANDS / COMPANIES
+# ----------------
+TerraGroup|терра групп|terra group
+Magpul|магпул|mag pul
+Fortis Shift|фортис шифт|fortis shift
+SureFire|шурфаер|sure fire
+EOTech|и-о-тек|ee oh tek
+March Tactical|марч тактикал|march tactical
+Nightforce|найтфорс|night force
+Holosun|холосан|holo sun
+AB Arms|эй-би армс|ay bee arms
+Alexander Arms|александер армс|alexander arms
+Odin Works|один воркс|odin works
+SWS N6 Split|эс-дабл-ю-эс эн-сикс сплит|ess double u ess en six split
+Vortex|вортекс|vortex
+CMMG|си-эм-эм-джи|cee em em gee
+FLIR|флир|fleer
+KIBA Arms|киба армс|kiba arms
+F1 Firearms|эф-ван файрмс|ef one firearms
+Ferfrans|ферфранс|ferfrans
+Ultimak|алтимак|ultimak
+Tactical Dynamics|тактикал дайнамикс|tactical dynamics
+Steiner|штайнер|stiner
+KAC|кей-эй-си|kay ay see
+HK|эйч-кай|aych kay
+
+# ----------------
+# RUSSIAN ATTACHMENTS / MODULES
+# ----------------
+Б-11|бэ-одиннадцать|be eleven
+Б-30|бэ-тридцать|be thirty
+Б-31С|бэ-тридцать один-эс|be thirty one ess
+РК-0|эр-ка-ноль|er ka zero
+ПТ-3|пе-те-три|pe te three
+АК-12|эй-кей двенадцать|ay kay twelve
+Клещ-2ИКС|клещ-два-икс|klesh two ex
+Клещ-2У|клещ-два-у|klesh two u
+РПК-16|эр-пэ-ка шестнадцать|er pe ka sixteen
+Ротор 43|ротор сорок три|rotor forty three
+НСПУ-М|эн-эс-пэ-у-эм|en es pe oo em
+УСП-1|у-эс-пэ один|oo es pe one
+ДТК|дэ-те-ка|de te ka
+
+# ----------------
+# WESTERN ATTACHMENTS / MODULES
+# ----------------
+Stainless Elite Wooden|стейнлесс элит вуден|stainless elite wooden
+Stainless Elite|стейнлесс элит|stainless elite
+Mk.5 Modular Rail|эм-кай-поинт-файв модулар рэйл|em kay point five modular rail
+Skeletonized Foregrip|скелетонайзд форгрип|skeletonized foregrip
+Skeletonized Grip|скелетонайзд грип|skeletonized grip
+AR-15|эй-ар фифтин|ay ar fifteen
+Annihilator|энайлейтор|annihilator
+Steiner LAS/TAC 2|штайнер лас-так ту|steiner lass tack two
+HK 416A5|эйч-кай четыреста шестнадцать эй-пять|aych kay four sixteen ay five
+SureFire SOCOM556-RC2|шурфаер соком файв файв сикс ар-си ту|sure fire so-com five five six ar see two
+Magpul RVG|магпул эр-ви-джи|magpul ar vee gee
+EOTech EXPS3|и-о-тек икс-пи-эс три|ee oh tek ex pee ess three
+Magpul MOE|магпул мо-и|magpul em oh ee
+Magpul UBR GEN2|магпул ю-би-эр джен два|magpul you bee ar gen two
+LA-5B/PEQ|эл-эй файв-би пек|el ay five bee peck
+GL-SHOCK|джи-эл-шок|gee el shock
+AN/PEQ-15|эй-эн пек фифтин|ay en peck fifteen
+Ferfrans CRD Concussion Reduction Device|ферфранс си-ар-ди конкашн редакшн дивайс|ferfrans see ar dee concussion reduction device
+Magpul AFG OD|магпул эй-эф-джи о-ди|magpul ay eff jee oh dee
+Circle 10|серкл тен|circle ten
+Magpul M-LOK AFG|магпул эм-лок эй-эф-джи|magpul em lok ay eff jee
+EOTech HHS-1|и-о-тек аш-эйч-эс уан|ee oh tek aich aich ess one
+SAG MK1|саг эм-кай уан|sag em kay one
+March Tactical 3-24x42 FFP|марч тактикал три-двадцать четыре на сорок два эф-эф-пи|march tactical three twenty four by forty two eff eff pee
+Ultimak M8 Forward Optic|алтимак эм-эйт форвард оптик|ultimak em eight forward optic
+Nightforce ATACR 7-35x56|найтфорс эй-ти-эй-си-ар семь-тридцать пять на пятьдесят шесть|nightforce ay tee ay see ar seven thirty five by fifty six
+Micro Т-1|майкро ти-уан|micro tee one
+Holosun LS321|холосан эл-эс три два один|holosun el ess three two one
+AB Arms|эй-би армс|ay bee arms
+Pachmayr|пакмайр|pach-myer
+Anarchy Outdoors|анарки аутдорс|anarchy outdoors
+KAC QDSS NT-4 (FDE)|кей-эй-си кью-ди-эс-эс эн-ти фор эф-ди-и|kay ay see cue dee ess ess en tee four eff dee ee
+Alexander Arms MK10|александер армс эм-кай тен|alexander arms em kay ten
+REAP-IR|риап-ир|reap ear
+SWS N6 Split|эс-дабл-ю-эс эн-сикс сплит|ess double u ess en six split
+Odin Works ATLAS-7|один воркс атлас севен|odin works atlas seven
+Tactical Dynamics Skeletonized Foregrip|тактикал дайнамикс скелетонайзд форгрип|tactical dynamics skeletonized foregrip
+GTL 21|джи-ти-эл твенти уан|gee tee el twenty one
+Vortex UH-1|вортекс ю-эйч уан|vortex you aych one
+HK E1|эйч-кай и-уан|aych kay ee one
+F1 Firearms Skeletonized Style 2|эф-ван файрмс скелетонайзд стайл ту|ef one firearms skeletonized style two
+CMMG Mk3|си-эм-эм-джи эм-кай три|cee em em gee em kay three
+KAC PRS/QDC|кей-эй-си пи-ар-эс кью-ди-си|kay ay see pee ar ess cue dee see
+SE-5|эс-и файв|ess ee five
+PRS GEN3|пи-ар-эс джен три|pee ar ess gen three
+HK Ergo PSG-1 style|эйч-кай эрго пи-эс-джи уан стайл|aych kay ergo pee ess gee one style
+DBAL-PL|ди-бэл-пи-эл|dee bal pee el
+FastFire 3|фастфаер три|fast fire three
+FLIR|флир|fleer
+
+# ----------------
+# CORE SHORT CODES / GENERIC PARTS
+# ----------------
+M-LOK|эм-лок|em lok
+MOE|мо-и|em oh ee
+AFG|эй-эф-джи|ay eff jee
+UBR|ю-би-эр|you bee ar
+GEN2|джен два|gen two
+GEN3|джен три|gen three
+RVG|эр-ви-джи|ar vee gee
+HHS-1|эйч-эйч-эс уан|aich aich ess one
+ATACR|эй-ти-эй-си-ар|ay tee ay see ar
+FFP|эф-эф-пи|eff eff pee
+FDE|эф-ди-и|eff dee ee
+# ----------------
+# OTHER ACRONYMS / TECH
+# ----------------
+IP|ай-пи|eye pee
+MK1|эм-ка-один|em key one

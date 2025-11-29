@@ -1,0 +1,11 @@
+keyboard
+mss
+pillow
+pytesseract
+numpy
+simpleaudio
+num2words
+pystray
+torch
+omegaconf
+pywin32
