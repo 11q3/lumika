@@ -660,11 +660,9 @@ class SileroTTSEngine:
     def __init__(self):
         self.device = "cpu"
         self.sample_rate = 24000
-        self.speed = {"ru": 100, "en": 100}
-        self.extra = {"ru": {"put_accent": True, "put_yo": True}, "en": {}}
+        self.speed = {self.BILINGUAL_KEY: 100}
+        self.extra = {self.BILINGUAL_KEY: {"put_accent": True, "put_yo": True}}
         self.models = {}
-        self.bilingual_enabled = False
-
         self._load_models()
 
         self._lock = threading.Lock()
@@ -683,9 +681,8 @@ class SileroTTSEngine:
 
     def _load_models(self):
         """
-        Try to load a bilingual Silero model first to synthesize RU+EN text in one
-        pass. If that fails (e.g., model unavailable), fall back to the original
-        per-language models.
+        Load a bilingual Silero model to synthesize RU+EN text in one pass.
+        This is the only supported mode now; failure to load is fatal.
         """
 
         try:
@@ -694,43 +691,37 @@ class SileroTTSEngine:
                 repo_or_dir="snakers4/silero-models",
                 model="silero_tts",
                 language="multi",
-                speaker="v4_multi",
+                speaker="multi_v2",
             )
             if hasattr(model, "to"):
                 model.to(self.device)
             if hasattr(model, "eval"):
                 model.eval()
-            self.models[self.BILINGUAL_KEY] = {"model": model, "voice": "en_0"}
+            voice = None
+            if hasattr(model, "speakers") and model.speakers:
+                voice = model.speakers[0]
+            if not voice:
+                voice = "en_0"
+            self.models[self.BILINGUAL_KEY] = {"model": model, "voice": voice}
             self.speed = {self.BILINGUAL_KEY: 100}
             self.extra = {self.BILINGUAL_KEY: {"put_accent": True, "put_yo": True}}
-            self.bilingual_enabled = True
             print("[TTS] Bilingual Silero model loaded successfully.")
             return
         except Exception as e:
-            print(f"[TTS] Bilingual model load failed, falling back to RU/EN split: {e}")
-
-        for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
-            print(f"[TTS] Loading Silero {lang.upper()} model via torch.hub (CPU)...")
-            model, _ = torch.hub.load(
-                repo_or_dir="snakers4/silero-models",
-                model="silero_tts",
-                language=lang,
-                speaker=hub_speaker,
+            msg = (
+                "[TTS] Bilingual model load failed and no fallback is allowed. "
+                "Please ensure the Silero multi_v2 speaker is available."
             )
-            if hasattr(model, "to"):
-                model.to(self.device)
-            if hasattr(model, "eval"):
-                model.eval()
-            self.models[lang] = {"model": model, "voice": voice}
+            print(f"{msg} Error: {e}")
+            _msg_box("Lumika - TTS init error", msg)
+            os._exit(1)
 
     def _warmup(self):
         warm = {
-            "ru": "Это длинная прогревочная фраза для русской модели, которая помогает загрузить все внутренние веса и графы, чтобы последующий вызов был быстрее.",
-            "en": "This is a long warmup sentence for the English model, to load all internal weights and computation graphs, so that later calls are faster.",
             self.BILINGUAL_KEY: "This warmup line mixes русский и English so the bilingual model primes both alphabets before real playback.",
         }
         for lang in self.models:
-            txt = warm.get(lang, warm["ru"])
+            txt = warm.get(lang, warm[self.BILINGUAL_KEY])
             model = self.models[lang]["model"]
             voice = self.models[lang]["voice"]
             for i in range(2):
@@ -844,7 +835,7 @@ class SileroTTSEngine:
                     self._audio_queue.task_done()
                     continue
                 with self._lock:
-                    speed_percent = self.speed.get(lang, self.speed.get("ru", 100))
+                    speed_percent = self.speed.get(lang, 100)
                 buf_to_play = self._time_stretch_ffmpeg(buf, speed_percent)
                 play_obj = sa.play_buffer(
                     buf_to_play.tobytes(),
@@ -904,8 +895,8 @@ class SileroTTSEngine:
         value = max(SPEED_MIN_PERCENT, min(SPEED_MAX_PERCENT, value))
         with self._lock:
             self.speed[lang] = value
-        print(f"[TTS] Playback speed {lang.upper()} set to {value}%")
-        show_speed_popup(value, lang)
+        print(f"[TTS] Playback speed set to {value}%")
+        show_speed_popup(value)
 
     def change_speed_step(self, lang: str, delta_step: int):
         lang = self._resolve_lang_key(lang)
@@ -919,41 +910,19 @@ class SileroTTSEngine:
         segments = split_ru_en_segments(text)
         if not segments:
             return
-        if self._has_bilingual_model():
-            merged = self._merge_segments_for_bilingual(segments)
-            if not merged:
-                return
-            lang_key = self.BILINGUAL_KEY
-            print("[TTS] Using bilingual model for merged text (preview):")
-            preview = merged.replace("\n", " ")[:80]
-            print(f"   - [{lang_key}] '{preview}'")
-            buf = self._synth_segment(merged, lang_key)
-            if buf is not None and buf.size:
-                try:
-                    self._audio_queue.put((lang_key, buf), timeout=0.1)
-                except queue.Full:
-                    print("[TTS] Audio queue full, dropping synthesis result.")
+        merged = self._merge_segments_for_bilingual(segments)
+        if not merged:
             return
-
-        print("[TTS] Segments (lang + preview):")
-        for seg_text, lang in segments:
-            preview = seg_text.replace("\n", " ")[:60]
-            print(f"   - [{lang}] '{preview}'")
-        for seg_text, lang in segments:
-            if self._stop_event.is_set():
-                print("[TTS] Stop requested, aborting synth.")
-                break
-            buf = self._synth_segment(seg_text, lang)
-            if buf is None or not buf.size:
-                continue
-            while not self._stop_event.is_set():
-                try:
-                    self._audio_queue.put((lang, buf), timeout=0.1)
-                    break
-                except queue.Full:
-                    continue
-            if self._stop_event.is_set():
-                break
+        lang_key = self.BILINGUAL_KEY
+        print("[TTS] Using bilingual model for merged text (preview):")
+        preview = merged.replace("\n", " ")[:80]
+        print(f"   - [{lang_key}] '{preview}'")
+        buf = self._synth_segment(merged, lang_key)
+        if buf is not None and buf.size:
+            try:
+                self._audio_queue.put((lang_key, buf), timeout=0.1)
+            except queue.Full:
+                print("[TTS] Audio queue full, dropping synthesis result.")
 
     def _synth_segment(self, text: str, lang: str):
         text = self._apply_lang_specific_preprocessing(text, lang)
@@ -991,15 +960,8 @@ class SileroTTSEngine:
         audio_int16 = trim_silence(audio_int16)
         return audio_int16
 
-    def _resolve_lang_key(self, requested: str) -> str:
-        if self._has_bilingual_model():
-            return self.BILINGUAL_KEY
-        if requested not in self.speed:
-            return "ru"
-        return requested
-
-    def _has_bilingual_model(self) -> bool:
-        return self.bilingual_enabled and self.BILINGUAL_KEY in self.models
+    def _resolve_lang_key(self, _requested: str) -> str:
+        return self.BILINGUAL_KEY
 
     def _merge_segments_for_bilingual(self, segments):
         normalized_parts = []
@@ -1090,19 +1052,11 @@ def _handle_speed_change(lang: str, delta_steps: int):
 
 
 def handle_speed_up():
-    _handle_speed_change("ru", +1)
+    _handle_speed_change(SileroTTSEngine.BILINGUAL_KEY, +1)
 
 
 def handle_speed_down():
-    _handle_speed_change("ru", -1)
-
-
-def handle_speed_up_en():
-    _handle_speed_change("en", +1)
-
-
-def handle_speed_down_en():
-    _handle_speed_change("en", -1)
+    _handle_speed_change(SileroTTSEngine.BILINGUAL_KEY, -1)
 
 
 # ---------------------------------------------------------------------------
@@ -1114,13 +1068,12 @@ def main():
     setup_tesseract()
     ensure_ffmpeg_available()
     load_custom_dict()
-    print("Lumika — screen reader (OCR + neural TTS, RU+EN, CPU)")
+    print("Lumika — screen reader (OCR + neural TTS, bilingual RU+EN, CPU)")
     print("Scroll Lock — capture screen (monitor under cursor) and read text.")
     print("Esc — stop current TTS.")
-    print("Alt+PageUp / Alt+PageDown — change RU playback speed (10–400%, step 25%).")
-    print("Shift+PageUp / Shift+PageDown — change EN playback speed (10–400%, step 25%).")
+    print("Alt+PageUp / Alt+PageDown — change playback speed (10–400%, step 25%).")
     print("Close tray icon (right-click → Quit) to exit.")
-    print("OCR: Tesseract eng+rus; TTS: Silero (RU+EN, CPU, bilingual preferred).")
+    print("OCR: Tesseract eng+rus; TTS: Silero (bilingual RU+EN, CPU).")
     print("Speed uses ffmpeg 'atempo' to keep pitch constant; ffmpeg.exe must be in PATH.\n")
     print("[TTS] Initializing Silero models via torch.hub (CPU)...")
     tts_engine = SileroTTSEngine()
@@ -1129,8 +1082,6 @@ def main():
     keyboard.add_hotkey("esc", handle_stop_hotkey)
     keyboard.add_hotkey("alt+page up", handle_speed_up)
     keyboard.add_hotkey("alt+page down", handle_speed_down)
-    keyboard.add_hotkey("shift+page up", handle_speed_up_en)
-    keyboard.add_hotkey("shift+page down", handle_speed_down_en)
 
     tray_image = _load_tray_image()
 
