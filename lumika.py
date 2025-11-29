@@ -729,18 +729,32 @@ class SileroTTSEngine:
                 try:
                     with self._lock, torch.no_grad():
                         text = preprocess_for_tts(txt, "ru" if lang == self.BILINGUAL_KEY else lang)
-                        kwargs = {
-                            "text": text,
-                            "speaker": voice,
-                            "sample_rate": self.sample_rate,
-                        }
+                        kwargs = {"speaker": voice, "sample_rate": self.sample_rate}
                         kwargs.update(self.extra.get(lang, {}))
-                        _ = model.apply_tts(**kwargs)
+                        _ = self._apply_model_tts(model, text, kwargs)
                     dt = time.time() - t0
                     print(f"[TTS] Warmup {lang} pass {i+1} done in {dt:.3f}s")
                 except Exception as e:
                     print(f"[TTS] Warmup {lang} pass {i+1} failed: {e}")
                     break
+
+    def _apply_model_tts(self, model, text: str, kwargs: dict):
+        """
+        Call Silero's apply_tts handling both legacy ``text=`` and newer
+        multi_v2 ``texts=`` signatures. Falls back to positional invocation
+        if keyword dispatch is not supported.
+        """
+
+        try:
+            return model.apply_tts(text=text, **kwargs)
+        except TypeError as e_text:
+            try:
+                return model.apply_tts(texts=[text], **kwargs)
+            except TypeError as e_texts:
+                try:
+                    return model.apply_tts(text, **kwargs)
+                except Exception:
+                    raise e_texts from e_text
 
     @staticmethod
     def _build_atempo_filters(speed_ratio: float) -> str:
@@ -934,19 +948,17 @@ class SileroTTSEngine:
         t0 = time.time()
         try:
             with self._lock, torch.no_grad():
-                kwargs = {
-                    "text": text,
-                    "speaker": voice,
-                    "sample_rate": self.sample_rate,
-                }
+                kwargs = {"speaker": voice, "sample_rate": self.sample_rate}
                 kwargs.update(self.extra.get(lang, {}))
-                audio = model.apply_tts(**kwargs)
+                audio = self._apply_model_tts(model, text, kwargs)
         except Exception as e:
             print(f"[TTS] Synth error ({lang}): {e}")
             return None
         print(f"[TTS] Synth done in {time.time() - t0:.3f}s")
         if isinstance(audio, torch.Tensor):
             audio = audio.detach().cpu().numpy()
+        if isinstance(audio, (list, tuple)) and audio:
+            audio = audio[0]
         audio = np.array(audio, dtype=np.float32)
         if audio.ndim > 1:
             audio = audio.squeeze()
