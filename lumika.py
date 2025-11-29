@@ -91,6 +91,10 @@ model, example_text = torch.hub.load(
 model.to("cpu")
 
 
+# Configure OCR language pipeline. By default use a bilingual eng+rus pass,
+# but allow overriding via env (semicolon-separated list of lang orders).
+OCR_LANG_PIPELINE = os.environ.get("LUMIKA_OCR_LANG", "eng+rus")
+
 ffmpeg_exe = BASE_DIR / "ffmpeg.exe"
 if ffmpeg_exe.exists():
     os.environ["PATH"] = str(BASE_DIR) + os.pathsep + os.environ.get("PATH", "")
@@ -287,7 +291,8 @@ def ocr_image(img: Image.Image) -> str:
     """
     1) Normalize resolution (scale small regions up, huge ones down).
     2) Try several preprocess variants (gray / bw / inverted).
-    3) Run Tesseract with BOTH lang orders: eng+rus and rus+eng.
+    3) Run Tesseract with a bilingual pipeline (eng+rus by default) or any
+       custom semicolon-separated lang orders from LUMIKA_OCR_LANG.
     4) Blacklist junk characters like '$' that you never want.
     5) Choose the result with the best 'text-like' score.
     """
@@ -325,8 +330,11 @@ def ocr_image(img: Image.Image) -> str:
         ("bwinv", bw_inv),
     ]
 
-    # Try both language priorities
-    lang_orders = ["eng+rus", "rus+eng"]
+    # Try configured language priorities (semicolon-separated env override)
+    lang_orders = [lang.strip() for lang in OCR_LANG_PIPELINE.split(";") if lang.strip()]
+    if not lang_orders:
+        lang_orders = ["eng+rus"]
+    print(f"[OCR] Language pipeline: {', '.join(lang_orders)}")
 
     # Config: keep spaces, set DPI, and blacklist '$' and a bit of obvious trash.
     base_config = (
