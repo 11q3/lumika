@@ -66,30 +66,15 @@ SPEED_MIN_PERCENT = 10
 SPEED_MAX_PERCENT = 400
 SPEED_STEP_PERCENT = 25
 
-from pathlib import Path
-import torch
+# If set to "0", fall back to separate RU/EN Silero models
+USE_BILINGUAL_TTS = os.environ.get("LUMIKA_USE_BILINGUAL_TTS", "1") != "0"
+BILINGUAL_MODEL_ID = "v2_multi"
+BILINGUAL_LANG = "multi"
+BILINGUAL_DEFAULT_SPEAKER = os.environ.get("LUMIKA_BILINGUAL_SPEAKER", "kseniya")
+BILINGUAL_SAMPLE_RATE = 16000
 
 BASE_DIR = Path(__file__).resolve().parent
 CACHE_DIR = BASE_DIR / "silero_cache" / "snakers4_silero-models_master"
-
-language = "ru"          # or "en"
-model_id = "v4_ru"       # or "v3_en", etc
-speaker = "xenia"        # or "en_0", etc
-
-model_path = CACHE_DIR / "src" / "silero" / "model" / f"{model_id}.pt"
-
-model, example_text = torch.hub.load(
-    repo_or_dir=str(CACHE_DIR),
-    model="silero_tts",
-    language=language,
-    speaker=model_id,
-    source="local",        # <- critical: do NOT try GitHub
-    path=str(model_path),  # <- tell Silero where the .pt is
-    force_reload=True,
-)
-
-model.to("cpu")
-
 
 ffmpeg_exe = BASE_DIR / "ffmpeg.exe"
 if ffmpeg_exe.exists():
@@ -404,46 +389,32 @@ def fix_ru_specific_words(text: str) -> str:
     return "".join(parts)
 
 
-def split_ru_en_segments(text: str):
-    tokens = WORD_OR_SPACE_RE.findall(text)
-    segments = []
-    cur_lang = None
-    buf = []
+def _detect_token_lang(tok: str, prev: str | None):
+    cyr = sum(1 for ch in tok if _is_cyrillic(ch))
+    lat = sum(1 for ch in tok if _is_latin(ch))
+    if cyr == 0 and lat == 0:
+        return prev
+    if cyr > lat:
+        return "ru"
+    if lat > cyr:
+        return "en"
+    return prev or "ru"
 
-    def detect_token_lang(tok, prev):
-        cyr = sum(1 for ch in tok if _is_cyrillic(ch))
-        lat = sum(1 for ch in tok if _is_latin(ch))
-        if cyr == 0 and lat == 0:
-            return prev
-        if cyr > lat:
-            return "ru"
-        if lat > cyr:
-            return "en"
-        return prev or "ru"
+
+def detect_dominant_language(text: str) -> str:
+    tokens = WORD_OR_SPACE_RE.findall(text)
+    counts = {"ru": 0, "en": 0}
+    cur_lang = None
 
     for tok in tokens:
-        tok_lang = detect_token_lang(tok, cur_lang)
-        if cur_lang is None and tok_lang is None:
-            tok_lang = "ru"
-        if cur_lang is None:
-            cur_lang = tok_lang or "ru"
-            buf.append(tok)
-            continue
-        if tok_lang is None or tok_lang == cur_lang:
-            buf.append(tok)
-        else:
-            seg_text = "".join(buf).strip()
-            if seg_text:
-                segments.append((seg_text, cur_lang))
-            buf = [tok]
+        tok_lang = _detect_token_lang(tok, cur_lang)
+        if tok_lang:
             cur_lang = tok_lang
+            counts[tok_lang] += len(tok)
 
-    if buf:
-        seg_text = "".join(buf).strip()
-        if seg_text:
-            segments.append((seg_text, cur_lang or "ru"))
-
-    return segments
+    if counts["en"] > counts["ru"]:
+        return "en"
+    return "ru"
 
 
 # ---------------------------------------------------------------------------
@@ -638,6 +609,36 @@ def preprocess_for_tts(text: str, lang: str) -> str:
     return text
 
 
+def preprocess_bilingual_mixed_text(text: str) -> str:
+    text = (text or "").strip()
+    if not text:
+        return ""
+
+    text = NON_SPEECH_RE.sub("", text)
+    text = WHITESPACE_RE.sub(" ", text)
+    text = fix_ocr_confusions(text)
+
+    tokens = WORD_OR_SPACE_RE.findall(text)
+    cleaned_parts = []
+    cur_lang = None
+
+    for tok in tokens:
+        tok_lang = _detect_token_lang(tok, cur_lang)
+        if tok_lang:
+            cur_lang = tok_lang
+            tok = apply_custom_dict(tok, tok_lang)
+            if tok_lang == "ru":
+                tok = fix_ru_specific_words(tok)
+            tok = replace_numbers_with_words(tok, tok_lang)
+        cleaned_parts.append(tok)
+
+    text = "".join(cleaned_parts)
+    text = WHITESPACE_RE.sub(" ", text).strip()
+    if text and text[-1] not in ".!?…":
+        text += "."
+    return text
+
+
 
 # ---------------------------------------------------------------------------
 #  Audio helpers
@@ -702,24 +703,16 @@ def show_speed_popup(speed_percent: int, lang: str | None = None):
 class SileroTTSEngine:
     def __init__(self):
         self.device = "cpu"
+        self.bilingual = USE_BILINGUAL_TTS
         self.sample_rate = 24000
         self.speed = {"ru": 100, "en": 100}
         self.extra = {"ru": {"put_accent": True, "put_yo": True}, "en": {}}
         self.models = {}
 
-        for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
-            print(f"[TTS] Loading Silero {lang.upper()} model via torch.hub (CPU)...")
-            model, _ = torch.hub.load(
-                repo_or_dir="snakers4/silero-models",
-                model="silero_tts",
-                language=lang,
-                speaker=hub_speaker,
-            )
-            if hasattr(model, "to"):
-                model.to(self.device)
-            if hasattr(model, "eval"):
-                model.eval()
-            self.models[lang] = {"model": model, "voice": voice}
+        if self.bilingual:
+            self._load_bilingual_model()
+        else:
+            self._load_mono_models()
 
         self._lock = threading.Lock()
         self._stop_event = threading.Event()
@@ -735,11 +728,81 @@ class SileroTTSEngine:
         self._warmup()
         self._thread = None
 
+    def _apply_tts(self, model, text: str, voice: str, lang: str):
+        kwargs = dict(self.extra.get(lang, {}))
+        args = [text]
+        if voice is not None:
+            args.append(voice)
+        if self.sample_rate is not None:
+            args.append(self.sample_rate)
+        return model.apply_tts(*args, **kwargs)
+
+    def _load_bilingual_model(self):
+        print("[TTS] Loading Silero bilingual (multi_v2) model from cache...")
+        model_path = CACHE_DIR / "src" / "silero" / "model" / f"{BILINGUAL_MODEL_ID}.pt"
+        if not model_path.exists() or model_path.stat().st_size < 1000:
+            print(
+                "[TTS] Bilingual model file is missing or looks like a stub (git-lfs pointer);"
+                " falling back to separate RU/EN models."
+            )
+            self.bilingual = False
+            self._load_mono_models()
+            return
+        model, avail_speakers = torch.hub.load(
+            repo_or_dir=str(CACHE_DIR),
+            model="silero_tts",
+            language=BILINGUAL_LANG,
+            speaker="multi_v2",
+            source="local",
+            path=str(model_path),
+            force_reload=True,
+        )
+        if hasattr(model, "to"):
+            model.to(self.device)
+        if hasattr(model, "eval"):
+            model.eval()
+
+        speakers = list(avail_speakers.keys()) if isinstance(avail_speakers, dict) else list(avail_speakers)
+        if BILINGUAL_DEFAULT_SPEAKER in speakers:
+            speaker = BILINGUAL_DEFAULT_SPEAKER
+        elif speakers:
+            speaker = speakers[0]
+            print(f"[TTS] Requested bilingual speaker '{BILINGUAL_DEFAULT_SPEAKER}' not found, using '{speaker}' instead")
+        else:
+            raise RuntimeError("[TTS] No speakers available in Silero bilingual model")
+
+        self.models = {BILINGUAL_LANG: {"model": model, "voice": speaker}}
+        self.sample_rate = BILINGUAL_SAMPLE_RATE
+        self.speed = {BILINGUAL_LANG: 100}
+        # The bilingual model rejects optional kwargs like put_accent/put_yo; keep it minimal.
+        self.extra = {BILINGUAL_LANG: {}}
+
+    def _load_mono_models(self):
+        for lang, hub_speaker, voice in (("ru", "v4_ru", "xenia"), ("en", "v3_en", "en_0")):
+            print(f"[TTS] Loading Silero {lang.upper()} model via torch.hub (CPU)...")
+            model, _ = torch.hub.load(
+                repo_or_dir="snakers4/silero-models",
+                model="silero_tts",
+                language=lang,
+                speaker=hub_speaker,
+            )
+            if hasattr(model, "to"):
+                model.to(self.device)
+            if hasattr(model, "eval"):
+                model.eval()
+            self.models[lang] = {"model": model, "voice": voice}
+
     def _warmup(self):
-        warm = {
-            "ru": "Это длинная прогревочная фраза для русской модели, которая помогает загрузить все внутренние веса и графы, чтобы последующий вызов был быстрее.",
-            "en": "This is a long warmup sentence for the English model, to load all internal weights and computation graphs, so that later calls are faster.",
-        }
+        warm = (
+            {
+                "multi": "Это прогревочная фраза на русском и English вместе, to ensure the bilingual model is ready.",
+            }
+            if self.bilingual
+            else {
+                "ru": "Это длинная прогревочная фраза для русской модели, которая помогает загрузить все внутренние веса и графы, чтобы последующий вызов был быстрее.",
+                "en": "This is a long warmup sentence for the English model, to load all internal weights and computation graphs, so that later calls are faster.",
+            }
+        )
         for lang, txt in warm.items():
             model = self.models[lang]["model"]
             voice = self.models[lang]["voice"]
@@ -748,13 +811,7 @@ class SileroTTSEngine:
                 try:
                     with self._lock, torch.no_grad():
                         text = preprocess_for_tts(txt, lang)
-                        kwargs = {
-                            "text": text,
-                            "speaker": voice,
-                            "sample_rate": self.sample_rate,
-                        }
-                        kwargs.update(self.extra.get(lang, {}))
-                        _ = model.apply_tts(**kwargs)
+                        _ = self._apply_tts(model, text, voice, lang)
                     dt = time.time() - t0
                     print(f"[TTS] Warmup {lang} pass {i+1} done in {dt:.3f}s")
                 except Exception as e:
@@ -778,6 +835,13 @@ class SileroTTSEngine:
         if not parts:
             parts = ["1.0"]
         return ",".join(f"atempo={p}" for p in parts)
+
+    def _speed_key(self, lang: str) -> str:
+        if lang in self.speed:
+            return lang
+        if self.bilingual and BILINGUAL_LANG in self.speed:
+            return BILINGUAL_LANG
+        return next(iter(self.speed))
 
     def _time_stretch_ffmpeg(self, buf: np.ndarray, speed_percent: int) -> np.ndarray:
         speed_percent = max(SPEED_MIN_PERCENT, min(SPEED_MAX_PERCENT, int(speed_percent)))
@@ -860,7 +924,7 @@ class SileroTTSEngine:
                     continue
 
                 with self._lock:
-                    speed_percent = self.speed.get(lang, self.speed["ru"])
+                    speed_percent = self.speed.get(self._speed_key(lang), 100)
 
                 buf_to_play = self._time_stretch_ffmpeg(buf, speed_percent)
                 play_obj = sa.play_buffer(
@@ -918,8 +982,7 @@ class SileroTTSEngine:
         t.start()
 
     def set_speed_percent(self, lang: str, value: int):
-        if lang not in self.speed:
-            lang = "ru"
+        lang = self._speed_key(lang)
         value = int(round(value / SPEED_STEP_PERCENT) * SPEED_STEP_PERCENT)
         value = max(SPEED_MIN_PERCENT, min(SPEED_MAX_PERCENT, value))
         with self._lock:
@@ -928,8 +991,7 @@ class SileroTTSEngine:
         show_speed_popup(value, lang)
 
     def change_speed_step(self, lang: str, delta_step: int):
-        if lang not in self.speed:
-            lang = "ru"
+        lang = self._speed_key(lang)
         with self._lock:
             base = self.speed[lang]
         self.set_speed_percent(lang, base + delta_step * SPEED_STEP_PERCENT)
@@ -937,28 +999,30 @@ class SileroTTSEngine:
     def _worker(self, text: str):
         if self._stop_event.is_set():
             return
-        segments = split_ru_en_segments(text)
-        if not segments:
-            return
-        print("[TTS] Segments (lang + preview):")
-        for seg_text, lang in segments:
-            preview = seg_text.replace("\n", " ")[:60]
-            print(f"   - [{lang}] '{preview}'")
-        for seg_text, lang in segments:
-            if self._stop_event.is_set():
-                print("[TTS] Stop requested, aborting synth.")
-                break
-            buf = self._synth_segment(seg_text, lang)
+        if self.bilingual:
+            tts_text = preprocess_bilingual_mixed_text(text)
+            if not tts_text:
+                return
+            buf = self._synth_bilingual(tts_text)
             if buf is None or not buf.size:
-                continue
+                return
             while not self._stop_event.is_set():
                 try:
-                    self._audio_queue.put((lang, buf), timeout=0.1)
+                    self._audio_queue.put((BILINGUAL_LANG, buf), timeout=0.1)
                     break
                 except queue.Full:
                     continue
-            if self._stop_event.is_set():
+            return
+        lang = detect_dominant_language(text)
+        buf = self._synth_segment(text, lang)
+        if buf is None or not buf.size:
+            return
+        while not self._stop_event.is_set():
+            try:
+                self._audio_queue.put((lang, buf), timeout=0.1)
                 break
+            except queue.Full:
+                continue
 
     def _synth_segment(self, text: str, lang: str):
         text = apply_custom_dict(text, lang)
@@ -971,13 +1035,37 @@ class SileroTTSEngine:
         t0 = time.time()
         try:
             with self._lock, torch.no_grad():
-                kwargs = {
-                    "text": text,
-                    "speaker": voice,
-                    "sample_rate": self.sample_rate,
-                }
-                kwargs.update(self.extra.get(lang, {}))
-                audio = model.apply_tts(**kwargs)
+                audio = self._apply_tts(model, text, voice, lang)
+        except Exception as e:
+            print(f"[TTS] Synth error ({lang}): {e}")
+            return None
+        print(f"[TTS] Synth done in {time.time() - t0:.3f}s")
+        if isinstance(audio, torch.Tensor):
+            audio = audio.detach().cpu().numpy()
+        audio = np.array(audio, dtype=np.float32)
+        if audio.ndim > 1:
+            audio = audio.squeeze()
+        if not audio.size:
+            return None
+        max_val = float(np.max(np.abs(audio)))
+        if max_val > 0:
+            audio = audio / max_val
+        audio = np.clip(audio, -1.0, 1.0)
+        audio_int16 = (audio * 32767.0).astype(np.int16)
+        audio_int16 = trim_silence(audio_int16)
+        return audio_int16
+
+    def _synth_bilingual(self, text: str):
+        lang = BILINGUAL_LANG
+        if not text or self._stop_event.is_set():
+            return None
+        model = self.models[lang]["model"]
+        voice = self.models[lang]["voice"]
+        print(f"[TTS] Synth | bilingual speaker={voice}, len={len(text)}")
+        t0 = time.time()
+        try:
+            with self._lock, torch.no_grad():
+                audio = self._apply_tts(model, text, voice, lang)
         except Exception as e:
             print(f"[TTS] Synth error ({lang}): {e}")
             return None
